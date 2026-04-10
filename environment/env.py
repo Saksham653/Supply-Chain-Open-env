@@ -14,6 +14,8 @@ from environment.simulator import (
     SKUFactory,
     SupplierSimulator,
 )
+from graders import easy_grade, medium_grade, hard_grade
+from graders.common import extract_metrics
 
 
 @dataclass(kw_only=True)
@@ -183,13 +185,14 @@ class SupplyChainEnvironment(Environment):
         placed_orders = sum(1 for receipt in receipts if receipt["status"] == "placed")
         spend_today = round(budget_before_orders - self._budget, 2)
 
-        reward = self._compute_reward(
-            units_demanded=units_demanded,
-            units_unfulfilled=units_unfulfilled,
-            overstock_count=overstock_count,
-            critical_count=critical_count,
-            rejected_orders=rejected_orders,
-        )
+        # Build a state snapshot for the grader
+        state_snapshot = self.export_state()
+        if self.difficulty == "easy":
+            reward = easy_grade(extract_metrics(state_snapshot))
+        elif self.difficulty == "medium":
+            reward = medium_grade(state_snapshot)
+        else:
+            reward = hard_grade(state_snapshot)
         done = self._day >= self._max_days
 
         self._total_reward += reward
