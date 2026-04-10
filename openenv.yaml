@@ -1,0 +1,167 @@
+name: supply-chain-openenv
+version: "1.1.0"
+description: >
+  A warehouse inventory management environment where an agent monitors stock,
+  demand, lead times, and budget, then places replenishment orders across a
+  seeded multi-day simulation.
+
+author: DJ
+tags:
+  - openenv
+  - supply-chain
+  - inventory
+  - warehouse
+  - real-world
+
+environment:
+  entrypoint: app.py
+  port: 7860
+  framework: fastapi
+  endpoints:
+    reset:
+      method: POST
+      path: /reset
+      description: Start a new seeded episode and return the initial observation.
+    step:
+      method: POST
+      path: /step
+      description: Apply a reorder action and return the next observation plus reward.
+    state:
+      method: GET
+      path: /state/{episode_id}
+      description: Return the current full episode state and trajectory.
+    tasks:
+      method: GET
+      path: /tasks
+      description: List benchmark tasks and their default seeds.
+    health:
+      method: GET
+      path: /health
+      description: Return 200 OK when the environment server is healthy.
+
+observation_space:
+  type: object
+  description: Snapshot of the warehouse after each daily decision.
+  fields:
+    skus:
+      type: array
+      items:
+        sku_id: string
+        stock: integer
+        demand_per_day: integer
+        reorder_point: integer
+        max_stock: integer
+        supplier_delay_days: integer
+        pending_order: integer
+        days_until_arrival: integer
+    day: integer
+    budget_remaining: float
+    stockouts_today: integer
+    reward: float
+    done: boolean
+    message: string
+
+action_space:
+  type: object
+  description: Request payload for a daily reorder decision.
+  fields:
+    episode_id:
+      type: string
+      description: Episode identifier returned by /reset.
+    reorder_quantities:
+      type: array
+      items:
+        sku_id: string
+        quantity: integer
+  constraints:
+    - Empty reorder_quantities is valid and represents a no-op decision.
+    - Only one pending order per SKU can exist at a time.
+    - Each unit costs 10 dollars and orders exceeding budget are rejected.
+    - Quantities must be positive integers.
+
+reward:
+  range: [0.0001, 0.9999]
+  per_step: true
+  description: >
+    Dense reward shaped by service level, overstock exposure, critical inventory
+    risk, and rejected orders.
+  formula: >
+    reward = max(0.0, 1.0
+      - 0.65 * (units_unfulfilled / units_demanded)
+      - 0.20 * (overstocked_skus / num_skus)
+      - 0.15 * (critical_skus / num_skus)
+      - 0.10 * (rejected_orders / num_skus))
+
+state_space:
+  type: object
+  description: Full episode state returned by /state/{episode_id}.
+  fields:
+    episode_id: string
+    difficulty: string
+    seed: integer
+    day: integer
+    max_days: integer
+    done: boolean
+    budget_start: float
+    budget_remaining: float
+    total_reward: float
+    average_reward: float
+    total_stockouts: integer
+    stockout_days: integer
+    overstock_days: integer
+    critical_days: integer
+    total_units_demanded: integer
+    total_units_unfulfilled: integer
+    service_level: float
+    total_orders_requested: integer
+    total_orders_placed: integer
+    total_orders_rejected: integer
+    rejection_rate: float
+    initial_skus: array
+    skus: array
+    trajectory: array
+
+tasks:
+  - id: easy
+    name: Single SKU Reorder
+    difficulty: easy
+    description: >
+      Manage one predictable SKU for 10 days and reorder before stockout.
+    episode_length: 10
+    num_skus: 1
+    budget: 10000.0
+    demand_variation: none
+    supplier_delays: deterministic
+    success_threshold: 0.6
+    default_seed: 101
+    grader: graders/easy.py
+
+  - id: medium
+    name: Multi-SKU Inventory Balance
+    difficulty: medium
+    description: >
+      Manage 10 SKUs for 20 days with plus or minus 20 percent demand variation
+      and plus or minus 1 day lead-time variation.
+    episode_length: 20
+    num_skus: 10
+    budget: 18000.0
+    demand_variation: plus_or_minus_20_percent
+    supplier_delays: plus_or_minus_1_day
+    success_threshold: 0.6
+    default_seed: 202
+    grader: graders/medium.py
+
+  - id: hard
+    name: Constrained Supply Chain
+    difficulty: hard
+    description: >
+      Manage 10 SKUs for 30 days with demand spikes, supplier delays, and a
+      tighter budget that forces prioritisation.
+    episode_length: 30
+    num_skus: 10
+    budget: 24000.0
+    demand_variation: spikes_up_to_2_5x_at_20_percent_probability
+    supplier_delays: base_plus_1_to_3_days_at_20_percent_probability
+    success_threshold: 0.6
+    default_seed: 303
+    grader: graders/hard.py
