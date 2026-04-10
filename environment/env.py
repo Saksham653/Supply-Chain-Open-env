@@ -196,7 +196,7 @@ class SupplyChainEnvironment(Environment):
         else:
             reward = hard_grade(metrics)
 
-        done = self.day >= self.max_days
+        done = state_snapshot["day"] >= state_snapshot["max_days"]
 
         self._total_reward += reward
         self._total_stockouts += stockouts_today
