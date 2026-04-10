@@ -2,8 +2,7 @@ from typing import Any, Dict, Iterable
 
 
 def clamp(value: float) -> float:
-    epsilon = 0.0001
-    return max(epsilon, min(1.0 - epsilon, round(value, 4)))
+    return max(0.01, min(0.99, round(value, 4)))
 
 
 def safe_ratio(numerator: float, denominator: float, default: float = 1.0) -> float:

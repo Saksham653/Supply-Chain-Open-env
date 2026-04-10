@@ -1,7 +1,11 @@
+import asyncio
 from typing import Dict
 
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import Body, FastAPI, HTTPException
+
+load_dotenv()
 
 from environment.env import (
     DEFAULT_SEEDS,
@@ -20,6 +24,14 @@ from environment.models import (
     TaskListResponse,
     TaskModel,
 )
+from inference import (
+    API_BASE_URL,
+    API_KEY,
+    ENV_BASE_URL,
+    SupplyChainEnvClient,
+    run_task,
+)
+from openai import OpenAI
 
 app = FastAPI(title="Supply Chain OpenEnv", version="1.1.0")
 
@@ -112,6 +124,23 @@ def list_tasks() -> TaskListResponse:
             ),
         ]
     )
+
+
+def run_agent(state: dict) -> dict:
+    """Thin wrapper used by the /run endpoint."""
+    difficulty = state.get("difficulty", "easy")
+    llm_client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    env_client = SupplyChainEnvClient(ENV_BASE_URL)
+    try:
+        score = asyncio.run(run_task(difficulty, llm_client, env_client))
+    finally:
+        asyncio.run(env_client.close())
+    return {"score": score}
+
+
+@app.post("/run")
+async def run(state: dict):
+    return run_agent(state)
 
 
 if __name__ == "__main__":

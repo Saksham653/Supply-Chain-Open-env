@@ -1,14 +1,11 @@
-"""Easy task grader for the seeded single-SKU episode."""
+def easy_grade(metrics):
+    # Perfect case (safe float handling)
+    if metrics["service_level"] >= 0.999 and metrics["rejection_free_ratio"] >= 0.999:
+        return 0.99
 
-from graders.common import clamp, extract_metrics
+    score = (
+        0.6 * metrics["service_level"]
+        + 0.4 * metrics["rejection_free_ratio"]
+    )
 
-
-def grade(state, action=None, result=None):
-    metrics = extract_metrics(state)
-    if metrics["service_level"] == 1.0 and metrics["rejection_free_ratio"] == 1.0:
-        return clamp(1.0)
-
-    score = 0.75 * metrics["service_level"]
-    score += 0.15 * metrics["stockout_free_ratio"]
-    score += 0.10 * metrics["average_reward"]
     return clamp(score)
