@@ -3,7 +3,7 @@
 from graders.common import clamp, extract_metrics
 
 
-def grade(state, action=None, result=None):
+def hard_grade(state, action=None, result=None):
     metrics = extract_metrics(state)
     score = 0.30 * metrics["service_level"]
     score += 0.20 * metrics["late_reward_average"]

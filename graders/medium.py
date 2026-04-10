@@ -3,7 +3,7 @@
 from graders.common import clamp, extract_metrics
 
 
-def grade(state, action=None, result=None):
+def medium_grade(state, action=None, result=None):
     metrics = extract_metrics(state)
     score = 0.40 * metrics["service_level"]
     score += 0.20 * metrics["stockout_free_ratio"]
