@@ -367,11 +367,12 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
             observation = result["observation"]
             reward_payload = result.get("reward")
             if isinstance(reward_payload, dict):
-              reward = float(reward_payload.get("value", 0.01))
+                reward_val = reward_payload.get("value")
+                reward = float(reward_val) if reward_val is not None else 0.01
             elif reward_payload is not None:
-              reward = float(reward_payload)
+                reward = float(reward_payload)
             else:
-              reward = 0.01
+                reward = 0.01
             reward = strict_safe(reward)
             reward = strict_safe(reward)
             done = bool(result.get("done", False))
@@ -379,13 +380,13 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
             safe_reward = strict_safe(reward)
             rewards.append(safe_reward)
             steps_taken = step
-            log_step(step=step, action=action, reward=safe_reward, done=done, error=None)s
+            log_step(step=step, action=action, reward=safe_reward, done=done, error=None)
 
             if done:
                 break
 
         final_state = await env_client.get_state(episode_id)
-        raw_score = float(cfg["grader"](final_state, None, None))
+        raw_score = float(cfg["grader"](final_state, action=None, result=None))
         score = strict_safe(raw_score)
         success = score >= SUCCESS_THRESHOLD
     except Exception as exc:
