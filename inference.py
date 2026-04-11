@@ -1,8 +1,14 @@
 """
 Baseline inference runner for Supply Chain OpenEnv.
 
-The script emits only [START], [STEP], and [END] records on stdout.
-All auxiliary diagnostics go to stderr.
+STDOUT must follow the OpenEnv competition format (not JSON):
+
+  [START] task=<name> env=<benchmark> model=<model>
+  [STEP]  step=<n> action=<str> reward=<0.00> done=true|false error=<msg|null>
+  [END]   success=true|false steps=<n> score=<0.00> rewards=<r1,r2,...>
+
+- reward / score / rewards: two decimal places, strictly in (0, 1) — never 0.00 or 1.00.
+- done / success: lowercase true or false (no quotes).
 """
 
 import asyncio
@@ -17,25 +23,40 @@ from openai import OpenAI
 
 from graders import easy_grade, hard_grade, medium_grade
 
-# Strict open interval (0, 1): never emit 0.0 or 1.0; keep clear margin.
-_SAFE_LO = 0.001
-_SAFE_HI = 0.999
-
 
 def strict_safe(x: float) -> float:
+    """Internal float in (0, 1), excluding endpoints."""
     if not math.isfinite(x):
         return 0.5
-    x = float(x)
-    x = max(_SAFE_LO, min(_SAFE_HI, x))
-    x = float(f"{x:.6f}")
-    x = max(_SAFE_LO, min(_SAFE_HI, x))
-    if x <= 0.0 or x >= 1.0:
+    v = float(x)
+    v = max(0.01, min(0.99, v))
+    if v <= 0.0 or v >= 1.0:
         return 0.5
-    return x
+    return v
 
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "openai/gpt-4o-mini")
-API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("HF_TOKEN", "")
+
+def _fmt_reward_2dp(x: float) -> str:
+    """Two-decimal string; strict (0,1) so rounding never yields 0.00 or 1.00."""
+    v = strict_safe(x)
+    v = round(v, 2)
+    v = max(0.01, min(0.99, v))
+    return f"{v:.2f}"
+
+
+def _action_str(action: Any) -> str:
+    return json.dumps(action, separators=(",", ":"))
+
+
+def _error_str(error: str | None) -> str:
+    if error is None:
+        return "null"
+    line = error.replace("\r", " ").replace("\n", " ").strip()
+    line = line.replace(" ", "_")[:500]
+    return line if line else "null"
+
+API_BASE_URL = os.environ.get("API_BASE_URL") or "https://router.huggingface.co/v1"
+MODEL_NAME = os.environ.get("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
+API_KEY = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
 ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://localhost:7860")
 
 TEMPERATURE = 0.0
@@ -114,41 +135,25 @@ def stderr(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
-def emit_log(tag: str, payload: Dict[str, Any]) -> None:
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action: Any, reward: float, done: bool, error: str | None) -> None:
+    done_s = "true" if done else "false"
     print(
-        f"[{tag}] {json.dumps(payload, separators=(',', ':'), allow_nan=False)}",
+        f"[STEP]  step={step} action={_action_str(action)} reward={_fmt_reward_2dp(reward)} "
+        f"done={done_s} error={_error_str(error)}",
         flush=True,
     )
 
 
-def log_start(task: str, env: str, model: str) -> None:
-    emit_log("START", {"task": task, "env": env, "model": model})
-
-
-def log_step(step: int, action: Any, reward: float, done: bool, error: str | None) -> None:
-    # Use strings for flags: in Python bool is a subclass of int (True==1, False==0);
-    # Hub validators that scan numeric fields often mis-treat booleans as scores 0.0/1.0.
-    emit_log(
-        "STEP",
-        {
-            "step": step,
-            "action": action,
-            "reward": strict_safe(reward),
-            "done": "true" if done else "false",
-            "error": error,
-        },
-    )
-
-
 def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    emit_log(
-        "END",
-        {
-            "success": "true" if success else "false",
-            "steps": steps,
-            "score": strict_safe(score),
-            "rewards": [strict_safe(reward) for reward in rewards],
-        },
+    succ = "true" if success else "false"
+    rs = ",".join(_fmt_reward_2dp(r) for r in rewards) if rewards else "0.01"
+    print(
+        f"[END]   success={succ} steps={steps} score={_fmt_reward_2dp(score)} rewards={rs}",
+        flush=True,
     )
 
 
