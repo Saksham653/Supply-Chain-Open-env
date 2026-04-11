@@ -375,6 +375,7 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
             error=str(exc),
         )
     finally:
+        score = clamp(score)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
     return score

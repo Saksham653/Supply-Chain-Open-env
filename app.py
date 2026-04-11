@@ -159,19 +159,10 @@ def run():
 
             # obs is a SupplyChainObservation dataclass — use attribute access
             reward = float(obs.reward) if hasattr(obs, "reward") else float(obs.get("reward", 0.0))
-            if reward >= 1.0:
-                reward = 0.99
-            elif reward <= 0.0:
-                reward = 0.01
-            total_reward += reward
+            total_reward += clamp(reward)
 
         avg_reward = total_reward / steps
-        safe_score = float(avg_reward)
-        if safe_score >= 1.0:
-            safe_score = 0.99
-        elif safe_score <= 0.0:
-            safe_score = 0.01
-        results[difficulty] = round(safe_score, 4)
+        results[difficulty] = clamp(avg_reward)
 
     return results
 

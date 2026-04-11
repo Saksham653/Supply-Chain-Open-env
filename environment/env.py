@@ -191,6 +191,8 @@ class SupplyChainEnvironment(Environment):
             reward = medium_grade(metrics)
         else:
             reward = hard_grade(metrics)
+            
+        reward = clamp(reward)
 
         done = state_snapshot["day"] >= state_snapshot["max_days"]
 

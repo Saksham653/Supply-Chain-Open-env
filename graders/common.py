@@ -2,7 +2,12 @@ from typing import Any, Dict, Iterable
 
 
 def clamp(value: float) -> float:
-    return max(0.01, min(0.99, round(value, 4)))
+    value = float(value)
+    if value >= 1.0:
+        return 0.99
+    if value <= 0.0:
+        return 0.01
+    return round(value, 4)
 
 
 def safe_ratio(numerator: float, denominator: float, default: float = 1.0) -> float:
