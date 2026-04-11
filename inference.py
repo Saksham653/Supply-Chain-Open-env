@@ -379,7 +379,7 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
             safe_reward = strict_safe(reward)
             rewards.append(safe_reward)
             steps_taken = step
-            log_step(step=step, action=action, reward=safe_reward, done=done, error=None)s
+            log_step(step=step, action=action, reward=safe_reward, done=done, error=None)
 
             if done:
                 break
