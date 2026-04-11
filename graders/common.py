@@ -1,9 +1,23 @@
 import math
 from typing import Any, Dict, Iterable
 
-# Task scores strictly in (0, 1); never 0.0 or 1.0 after rounding.
+# Interior band for metrics; final task scores use finalize_task_score().
 _SCORE_LO = 0.001
 _SCORE_HI = 0.999
+
+
+def finalize_task_score(value: float) -> float:
+    """Last step before returning from OpenEnv grader: strict (0, 1), never 0.0 or 1.0."""
+    if not math.isfinite(value):
+        return 0.5
+    eps = 1e-5
+    v = float(value)
+    v = max(eps, min(1.0 - eps, v))
+    if v <= 0.0:
+        v = eps
+    if v >= 1.0:
+        v = 1.0 - eps
+    return v
 
 
 def clamp(value: float) -> float:
