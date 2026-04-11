@@ -1,5 +1,6 @@
 import asyncio
 from typing import Dict
+from app import StepRequest   # or wherever it's defined
 
 import uvicorn
 from dotenv import load_dotenv
@@ -150,7 +151,10 @@ def run():
         steps = 5
 
         for _ in range(steps):
-            action = {"reorder_quantities": []}
+            action = StepRequest(
+                episode_id=state["episode_id"],
+                reorder_quantities=[]
+            )
             obs = env.step(action)
             total_reward += obs["reward"]
 
