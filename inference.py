@@ -7,6 +7,7 @@ All auxiliary diagnostics go to stderr.
 
 import asyncio
 import json
+import math
 import os
 import sys
 from typing import Any, Dict, List
@@ -16,24 +17,20 @@ from openai import OpenAI
 
 from graders import easy_grade, hard_grade, medium_grade
 
+# Strict open interval (0, 1): never emit 0.0 or 1.0; keep clear margin.
+_SAFE_LO = 0.001
+_SAFE_HI = 0.999
+
+
 def strict_safe(x: float) -> float:
+    if not math.isfinite(x):
+        return 0.5
     x = float(x)
-
-    # HARD bounds (not near edges)
-    if x >= 0.99:
-        return 0.9899
-    if x <= 0.01:
-        return 0.0101
-
-    # SAFE rounding without hitting edges
-    x = float(f"{x:.4f}")
-
-    # Double safety after rounding
-    if x >= 0.99:
-        return 0.9899
-    if x <= 0.01:
-        return 0.0101
-
+    x = max(_SAFE_LO, min(_SAFE_HI, x))
+    x = float(f"{x:.6f}")
+    x = max(_SAFE_LO, min(_SAFE_HI, x))
+    if x <= 0.0 or x >= 1.0:
+        return 0.5
     return x
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
@@ -118,7 +115,10 @@ def stderr(message: str) -> None:
 
 
 def emit_log(tag: str, payload: Dict[str, Any]) -> None:
-    print(f"[{tag}] {json.dumps(payload, separators=(',', ':'))}", flush=True)
+    print(
+        f"[{tag}] {json.dumps(payload, separators=(',', ':'), allow_nan=False)}",
+        flush=True,
+    )
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -126,13 +126,15 @@ def log_start(task: str, env: str, model: str) -> None:
 
 
 def log_step(step: int, action: Any, reward: float, done: bool, error: str | None) -> None:
+    # Use strings for flags: in Python bool is a subclass of int (True==1, False==0);
+    # Hub validators that scan numeric fields often mis-treat booleans as scores 0.0/1.0.
     emit_log(
         "STEP",
         {
             "step": step,
             "action": action,
             "reward": strict_safe(reward),
-            "done": done,
+            "done": "true" if done else "false",
             "error": error,
         },
     )
@@ -142,7 +144,7 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
     emit_log(
         "END",
         {
-            "success": success,
+            "success": "true" if success else "false",
             "steps": steps,
             "score": strict_safe(score),
             "rewards": [strict_safe(reward) for reward in rewards],
@@ -343,7 +345,8 @@ def build_action(observation: Dict[str, Any], difficulty: str, profile_name: str
 
 async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainEnvClient) -> float:
     cfg = TASK_CONFIG[difficulty]
-    task_name = f"supply_chain_{difficulty}"
+    # Must match openenv.yaml tasks[].id (easy / medium / hard)
+    task_name = difficulty
     benchmark = "supply-chain-openenv"
     rewards: List[float] = []
     steps_taken = 0

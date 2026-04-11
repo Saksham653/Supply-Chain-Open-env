@@ -1,19 +1,43 @@
+import math
 from typing import Any, Dict, Iterable
+
+# Interior band for metrics; final task scores use finalize_task_score().
+_SCORE_LO = 0.001
+_SCORE_HI = 0.999
+
+
+def finalize_task_score(value: float) -> float:
+    """Last step before returning from OpenEnv grader: strict (0, 1), never 0.0 or 1.0."""
+    if not math.isfinite(value):
+        return 0.5
+    eps = 1e-5
+    v = float(value)
+    v = max(eps, min(1.0 - eps, v))
+    if v <= 0.0:
+        v = eps
+    if v >= 1.0:
+        v = 1.0 - eps
+    return v
 
 
 def clamp(value: float) -> float:
+    if not math.isfinite(value):
+        return 0.5
     value = float(value)
     if value >= 1.0:
-        return 0.99
-    if value <= 0.0:
-        return 0.01
-    value = round(value, 4)
-    # Re-check AFTER rounding — round(0.99995, 4) == 1.0 is real
-    if value >= 1.0:
-        return 0.99
-    if value <= 0.0:
-        return 0.01
-    return value
+        value = _SCORE_HI
+    elif value <= 0.0:
+        value = _SCORE_LO
+    else:
+        value = round(value, 6)
+        if value >= 1.0:
+            value = _SCORE_HI
+        elif value <= 0.0:
+            value = _SCORE_LO
+    value = max(_SCORE_LO, min(_SCORE_HI, value))
+    if value <= 0.0 or value >= 1.0:
+        return 0.5
+    return float(value)
 
 
 def safe_ratio(numerator: float, denominator: float, default: float = 1.0) -> float:
