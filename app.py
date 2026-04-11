@@ -164,7 +164,13 @@ def run():
         avg_reward = total_reward / steps
         results[difficulty] = clamp(avg_reward)
 
-    return results
+    return {
+    "tasks": [
+        {"task": "easy", "score": results["easy"]},
+        {"task": "medium", "score": results["medium"]},
+        {"task": "hard", "score": results["hard"]}
+    ]
+}
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=7860, reload=False)
