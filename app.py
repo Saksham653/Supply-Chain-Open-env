@@ -1,6 +1,5 @@
 import asyncio
 from typing import Dict
-from app import StepRequest   # or wherever it's defined
 
 import uvicorn
 from dotenv import load_dotenv
@@ -143,6 +142,11 @@ def run_agent(state: dict) -> dict:
 def run():
     results = {}
 
+    class DummyAction:
+        def __init__(self, episode_id):
+            self.episode_id = episode_id
+            self.reorder_quantities = []
+
     for difficulty in ["easy", "medium", "hard"]:
         env = SupplyChainEnvironment(difficulty=difficulty)
         state = env.reset()
@@ -151,10 +155,7 @@ def run():
         steps = 5
 
         for _ in range(steps):
-            action = StepRequest(
-                episode_id=state["episode_id"],
-                reorder_quantities=[]
-            )
+            action = DummyAction(state["episode_id"])
             obs = env.step(action)
             total_reward += obs["reward"]
 
@@ -164,6 +165,5 @@ def run():
         results[difficulty] = avg_reward
 
     return {"scores": results}
-
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=7860, reload=False)
