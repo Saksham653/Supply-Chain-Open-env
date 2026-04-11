@@ -162,7 +162,12 @@ def run():
             total_reward += reward
 
         avg_reward = total_reward / steps
-        results[difficulty] = clamp(avg_reward)
+        safe_score = float(avg_reward)
+        if safe_score >= 1.0:
+            safe_score = 0.99
+        elif safe_score <= 0.0:
+            safe_score = 0.01
+        results[difficulty] = round(safe_score, 4)
 
     return {"scores": results}
 
