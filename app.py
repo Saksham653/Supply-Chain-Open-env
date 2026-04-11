@@ -165,11 +165,9 @@ def run():
         results[difficulty] = clamp(avg_reward)
 
     return {
-    "tasks": [
-        {"task": "easy", "score": results["easy"]},
-        {"task": "medium", "score": results["medium"]},
-        {"task": "hard", "score": results["hard"]}
-    ]
+    "easy": float(results["easy"]),
+    "medium": float(results["medium"]),
+    "hard": float(results["hard"]),
 }
 
 if __name__ == "__main__":

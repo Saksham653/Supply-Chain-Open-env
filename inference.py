@@ -365,19 +365,21 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
             action = build_action(observation, difficulty, profile_name)
             result = await env_client.step(episode_id, action)
             observation = result["observation"]
-            reward_payload = result.get("reward", {})
-            reward = (
-                float(reward_payload.get("value", 0.0))
-                if isinstance(reward_payload, dict)
-                else float(reward_payload or 0.0)
-            )
+            reward_payload = result.get("reward")
+            if isinstance(reward_payload, dict):
+              reward = float(reward_payload.get("value", 0.01))
+            elif reward_payload is not None:
+              reward = float(reward_payload)
+            else:
+              reward = 0.01
+            reward = strict_safe(reward)
             reward = strict_safe(reward)
             done = bool(result.get("done", False))
 
             safe_reward = strict_safe(reward)
             rewards.append(safe_reward)
             steps_taken = step
-            log_step(step=step, action=action, reward=reward, done=done, error=None)
+            log_step(step=step, action=action, reward=safe_reward, done=done, error=None)s
 
             if done:
                 break

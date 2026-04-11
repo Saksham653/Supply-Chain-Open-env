@@ -7,7 +7,13 @@ def clamp(value: float) -> float:
         return 0.99
     if value <= 0.0:
         return 0.01
-    return round(value, 4)
+    value = round(value, 4)
+    # Re-check AFTER rounding — round(0.99995, 4) == 1.0 is real
+    if value >= 1.0:
+        return 0.99
+    if value <= 0.0:
+        return 0.01
+    return value
 
 
 def safe_ratio(numerator: float, denominator: float, default: float = 1.0) -> float:

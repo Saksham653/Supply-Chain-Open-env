@@ -183,15 +183,14 @@ class SupplyChainEnvironment(Environment):
 
         # Build a state snapshot for the grader
         state_snapshot = self.export_state()
-        metrics = extract_metrics(state_snapshot)
-
+        
         if self.difficulty == "easy":
-            reward = easy_grade(metrics)
+          reward = easy_grade(state_snapshot)    # now uses new signature
         elif self.difficulty == "medium":
-            reward = medium_grade(metrics)
+          reward = medium_grade(state_snapshot)  # passes state, not pre-computed metrics
         else:
-            reward = hard_grade(metrics)
-            
+          reward = hard_grade(state_snapshot)
+    
         reward = clamp(reward)
 
         done = state_snapshot["day"] >= state_snapshot["max_days"]
