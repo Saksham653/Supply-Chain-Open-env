@@ -7,6 +7,7 @@ All auxiliary diagnostics go to stderr.
 
 import asyncio
 import json
+import math
 import os
 import sys
 from typing import Any, Dict, List
@@ -16,24 +17,20 @@ from openai import OpenAI
 
 from graders import easy_grade, hard_grade, medium_grade
 
+# Strict open interval (0, 1): never emit 0.0 or 1.0; keep clear margin.
+_SAFE_LO = 0.001
+_SAFE_HI = 0.999
+
+
 def strict_safe(x: float) -> float:
+    if not math.isfinite(x):
+        return 0.5
     x = float(x)
-
-    # HARD bounds (not near edges)
-    if x >= 0.99:
-        return 0.9899
-    if x <= 0.01:
-        return 0.0101
-
-    # SAFE rounding without hitting edges
-    x = float(f"{x:.4f}")
-
-    # Double safety after rounding
-    if x >= 0.99:
-        return 0.9899
-    if x <= 0.01:
-        return 0.0101
-
+    x = max(_SAFE_LO, min(_SAFE_HI, x))
+    x = float(f"{x:.6f}")
+    x = max(_SAFE_LO, min(_SAFE_HI, x))
+    if x <= 0.0 or x >= 1.0:
+        return 0.5
     return x
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")

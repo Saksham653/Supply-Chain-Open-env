@@ -11,3 +11,6 @@ def medium_grade(state, action=None, result=None):
     score += 0.10 * metrics["rejection_free_ratio"]
     score += 0.10 * metrics["average_reward"]
     return clamp(score)
+
+
+grade = medium_grade

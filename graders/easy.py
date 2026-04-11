@@ -7,3 +7,7 @@ def easy_grade(state, action=None, result=None):
         return clamp(0.99)
     score = 0.6 * metrics["service_level"] + 0.4 * metrics["rejection_free_ratio"]
     return clamp(score)
+
+
+# openenv.yaml references graders/easy.py — loaders often expect this name
+grade = easy_grade

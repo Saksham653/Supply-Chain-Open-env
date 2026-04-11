@@ -1,26 +1,29 @@
 import math
 from typing import Any, Dict, Iterable
 
-# Task scores strictly in (0, 1); keep a margin from endpoints for Hub validation.
-_SCORE_LO = 0.01
-_SCORE_HI = 0.99
+# Task scores strictly in (0, 1); never 0.0 or 1.0 after rounding.
+_SCORE_LO = 0.001
+_SCORE_HI = 0.999
 
 
 def clamp(value: float) -> float:
     if not math.isfinite(value):
-        return _SCORE_LO
+        return 0.5
     value = float(value)
     if value >= 1.0:
-        return _SCORE_HI
-    if value <= 0.0:
-        return _SCORE_LO
-    value = round(value, 4)
-    # Re-check after rounding — e.g. round(0.99995, 4) == 1.0
-    if value >= 1.0:
-        return _SCORE_HI
-    if value <= 0.0:
-        return _SCORE_LO
-    return max(_SCORE_LO, min(_SCORE_HI, value))
+        value = _SCORE_HI
+    elif value <= 0.0:
+        value = _SCORE_LO
+    else:
+        value = round(value, 6)
+        if value >= 1.0:
+            value = _SCORE_HI
+        elif value <= 0.0:
+            value = _SCORE_LO
+    value = max(_SCORE_LO, min(_SCORE_HI, value))
+    if value <= 0.0 or value >= 1.0:
+        return 0.5
+    return float(value)
 
 
 def safe_ratio(numerator: float, denominator: float, default: float = 1.0) -> float:

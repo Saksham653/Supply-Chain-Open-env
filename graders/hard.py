@@ -12,3 +12,6 @@ def hard_grade(state, action=None, result=None):
     score += 0.10 * metrics["rejection_free_ratio"]
     score += 0.10 * metrics["overstock_free_ratio"]
     return clamp(score)
+
+
+grade = hard_grade
