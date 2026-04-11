@@ -15,7 +15,7 @@ from environment.simulator import (
     SupplierSimulator,
 )
 from graders import easy_grade, medium_grade, hard_grade
-from graders.common import extract_metrics
+from graders.common import clamp, extract_metrics
 
 
 @dataclass(kw_only=True)
@@ -73,11 +73,7 @@ DEFAULT_SEEDS = {
     "hard": 303,
 }
 
-STRICT_EPSILON = 0.0001
-
-
-def strict_unit_interval(value: float) -> float:
-    return max(STRICT_EPSILON, min(1.0 - STRICT_EPSILON, round(float(value), 4)))
+STRICT_EPSILON = 0.01
 
 
 class SupplyChainEnvironment(Environment):
@@ -148,7 +144,7 @@ class SupplyChainEnvironment(Environment):
             day=self._day,
             budget_remaining=self._budget,
             stockouts_today=0,
-            reward=STRICT_EPSILON,
+            reward=clamp(0.01),
             done=False,
             message=(
                 f"Episode started. Difficulty: {self.difficulty}. "
@@ -214,7 +210,7 @@ class SupplyChainEnvironment(Environment):
                 "stockouts_today": stockouts_today,
                 "units_demanded": units_demanded,
                 "units_unfulfilled": units_unfulfilled,
-                "service_level_today": strict_unit_interval(
+                "service_level_today": clamp(
                     1.0 - (units_unfulfilled / units_demanded if units_demanded else 0.0)
                 ),
                 "budget_remaining": round(self._budget, 2),
@@ -273,19 +269,19 @@ class SupplyChainEnvironment(Environment):
             "done": self._state.done,
             "budget_start": self._starting_budget,
             "budget_remaining": round(self._budget, 2),
-            "total_reward": strict_unit_interval(total_reward),
-            "average_reward": strict_unit_interval(average_reward),
+            "total_reward": clamp(total_reward),
+            "average_reward": clamp(average_reward),
             "total_stockouts": self._total_stockouts,
             "stockout_days": self._stockout_days,
             "overstock_days": self._overstock_days,
             "critical_days": self._critical_days,
             "total_units_demanded": self._total_units_demanded,
             "total_units_unfulfilled": self._total_units_unfulfilled,
-            "service_level": strict_unit_interval(service_level),
+            "service_level": clamp(service_level),
             "total_orders_requested": self._total_orders_requested,
             "total_orders_placed": self._total_orders_placed,
             "total_orders_rejected": self._total_orders_rejected,
-            "rejection_rate": strict_unit_interval(rejection_rate),
+            "rejection_rate": clamp(rejection_rate),
             "initial_skus": deepcopy(self._initial_skus),
             "skus": self._serialize_skus(),
             "trajectory": deepcopy(self._trajectory),
@@ -298,7 +294,7 @@ class SupplyChainEnvironment(Environment):
         self._state.seed = self.seed
         self._state.budget_start = self._starting_budget
         self._state.budget_remaining = round(self._budget, 2)
-        self._state.total_reward = strict_unit_interval(total_reward)
+        self._state.total_reward = clamp(total_reward)
         self._state.total_stockouts = self._total_stockouts
         self._state.stockout_days = self._stockout_days
         self._state.total_units_demanded = self._total_units_demanded
@@ -351,4 +347,4 @@ class SupplyChainEnvironment(Environment):
         reward -= overstock_penalty
         reward -= critical_penalty
         reward -= rejection_penalty
-        return strict_unit_interval(reward)
+        return clamp(reward)

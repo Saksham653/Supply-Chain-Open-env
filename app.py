@@ -11,8 +11,8 @@ from environment.env import (
     DEFAULT_SEEDS,
     SupplyChainAction,
     SupplyChainEnvironment,
-    strict_unit_interval,
 )
+from graders.common import clamp
 from environment.models import (
     EpisodeStateModel,
     HealthResponse,
@@ -42,7 +42,7 @@ def _build_response(episode_id: str, observation, state_dict: dict, done: bool) 
     return {
         "episode_id": episode_id,
         "observation": SupplyChainObservationModel(**observation.__dict__),
-        "reward": strict_unit_interval(float(observation.reward or 0.0)),
+        "reward": clamp(float(observation.reward or 0.0)),
         "done": done,
         "state": EpisodeStateModel(**state_dict),
     }

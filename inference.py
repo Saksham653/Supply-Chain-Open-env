@@ -15,6 +15,7 @@ import httpx
 from openai import OpenAI
 
 from graders import easy_grade, hard_grade, medium_grade
+from graders.common import clamp
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "openai/gpt-4o-mini")
@@ -90,11 +91,7 @@ PROFILE_LIBRARY = {
 }
 
 
-STRICT_EPSILON = 0.0001
-
-
-def strict_unit_interval(value: float) -> float:
-    return max(STRICT_EPSILON, min(1.0 - STRICT_EPSILON, round(float(value), 4)))
+STRICT_EPSILON = 0.01
 
 
 def stderr(message: str) -> None:
@@ -115,7 +112,7 @@ def log_step(step: int, action: Any, reward: float, done: bool, error: str | Non
         {
             "step": step,
             "action": action,
-            "reward": strict_unit_interval(reward),
+            "reward": clamp(reward),
             "done": done,
             "error": error,
         },
@@ -128,8 +125,8 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
         {
             "success": success,
             "steps": steps,
-            "score": strict_unit_interval(score),
-            "rewards": [strict_unit_interval(reward) for reward in rewards],
+            "score": clamp(score),
+            "rewards": [clamp(reward) for reward in rewards],
         },
     )
 
@@ -355,7 +352,7 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
                 if isinstance(reward_payload, dict)
                 else float(reward_payload or 0.0)
             )
-            reward = strict_unit_interval(reward)
+            reward = clamp(reward)
             done = bool(result.get("done", False))
 
             rewards.append(reward)
@@ -366,7 +363,7 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
                 break
 
         final_state = await env_client.get_state(episode_id)
-        score = strict_unit_interval(float(cfg["grader"](final_state, None, None)))
+        score = clamp(float(cfg["grader"](final_state, None, None)))
         success = score >= SUCCESS_THRESHOLD
     except Exception as exc:
         stderr(f"[TASK_ERROR] {difficulty}: {exc}")
