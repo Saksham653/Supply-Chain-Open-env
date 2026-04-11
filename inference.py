@@ -115,7 +115,10 @@ def stderr(message: str) -> None:
 
 
 def emit_log(tag: str, payload: Dict[str, Any]) -> None:
-    print(f"[{tag}] {json.dumps(payload, separators=(',', ':'))}", flush=True)
+    print(
+        f"[{tag}] {json.dumps(payload, separators=(',', ':'), allow_nan=False)}",
+        flush=True,
+    )
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -123,13 +126,15 @@ def log_start(task: str, env: str, model: str) -> None:
 
 
 def log_step(step: int, action: Any, reward: float, done: bool, error: str | None) -> None:
+    # Use strings for flags: in Python bool is a subclass of int (True==1, False==0);
+    # Hub validators that scan numeric fields often mis-treat booleans as scores 0.0/1.0.
     emit_log(
         "STEP",
         {
             "step": step,
             "action": action,
             "reward": strict_safe(reward),
-            "done": done,
+            "done": "true" if done else "false",
             "error": error,
         },
     )
@@ -139,7 +144,7 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
     emit_log(
         "END",
         {
-            "success": success,
+            "success": "true" if success else "false",
             "steps": steps,
             "score": strict_safe(score),
             "rewards": [strict_safe(reward) for reward in rewards],
@@ -340,7 +345,8 @@ def build_action(observation: Dict[str, Any], difficulty: str, profile_name: str
 
 async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainEnvClient) -> float:
     cfg = TASK_CONFIG[difficulty]
-    task_name = f"supply_chain_{difficulty}"
+    # Must match openenv.yaml tasks[].id (easy / medium / hard)
+    task_name = difficulty
     benchmark = "supply-chain-openenv"
     rewards: List[float] = []
     steps_taken = 0
