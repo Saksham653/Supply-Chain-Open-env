@@ -142,35 +142,27 @@ def run_agent(state: dict) -> dict:
 def run():
     results = {}
 
-    class DummyAction:
-        def __init__(self, episode_id):
-            self.episode_id = episode_id
-            self.reorder_quantities = []
-
     for difficulty in ["easy", "medium", "hard"]:
         env = SupplyChainEnvironment(difficulty=difficulty)
         obs = env.reset()
 
-        # 🔥 HANDLE BOTH CASES
-        if isinstance(obs, dict):
-            episode_id = obs["episode_id"]
-        else:
-            episode_id = obs.state.episode_id  # fallback
+        # episode_id lives on the environment state, not the observation
+        episode_id = env.state.episode_id
 
-        total_reward = 0
+        total_reward = 0.0
         steps = 5
 
         for _ in range(steps):
-            action = DummyAction(episode_id)
+            # env.step() expects a SupplyChainAction dataclass (kw_only)
+            action = SupplyChainAction(reorder_quantities=[])
             obs = env.step(action)
 
-            # reward always dict in your case
-            total_reward += obs["reward"]
+            # obs is a SupplyChainObservation dataclass — use attribute access
+            reward = float(obs.reward) if hasattr(obs, "reward") else float(obs.get("reward", 0.0))
+            total_reward += reward
 
         avg_reward = total_reward / steps
-        avg_reward = max(0.01, min(0.99, avg_reward))
-
-        results[difficulty] = avg_reward
+        results[difficulty] = clamp(avg_reward)
 
     return {"scores": results}
 
