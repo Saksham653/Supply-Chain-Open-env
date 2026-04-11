@@ -149,14 +149,22 @@ def run():
 
     for difficulty in ["easy", "medium", "hard"]:
         env = SupplyChainEnvironment(difficulty=difficulty)
-        obs = env.reset()   # <-- IMPORTANT CHANGE
+        obs = env.reset()
+
+        # 🔥 HANDLE BOTH CASES
+        if isinstance(obs, dict):
+            episode_id = obs["episode_id"]
+        else:
+            episode_id = obs.state.episode_id  # fallback
 
         total_reward = 0
         steps = 5
 
         for _ in range(steps):
-            action = DummyAction(obs.episode_id)
+            action = DummyAction(episode_id)
             obs = env.step(action)
+
+            # reward always dict in your case
             total_reward += obs["reward"]
 
         avg_reward = total_reward / steps
@@ -166,6 +174,5 @@ def run():
 
     return {"scores": results}
 
-    return {"scores": results}
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=7860, reload=False)
