@@ -149,13 +149,13 @@ def run():
 
     for difficulty in ["easy", "medium", "hard"]:
         env = SupplyChainEnvironment(difficulty=difficulty)
-        state = env.reset()
+        obs = env.reset()   # <-- IMPORTANT CHANGE
 
         total_reward = 0
         steps = 5
 
         for _ in range(steps):
-            action = DummyAction(state["episode_id"])
+            action = DummyAction(obs.episode_id)
             obs = env.step(action)
             total_reward += obs["reward"]
 
@@ -163,6 +163,8 @@ def run():
         avg_reward = max(0.01, min(0.99, avg_reward))
 
         results[difficulty] = avg_reward
+
+    return {"scores": results}
 
     return {"scores": results}
 if __name__ == "__main__":
