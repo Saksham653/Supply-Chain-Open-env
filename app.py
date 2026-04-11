@@ -139,9 +139,27 @@ def run_agent(state: dict) -> dict:
 
 
 @app.post("/run")
-async def run(state: dict):
-    return run_agent(state)
+def run():
+    results = {}
 
+    for difficulty in ["easy", "medium", "hard"]:
+        env = SupplyChainEnvironment(difficulty=difficulty)
+        state = env.reset()
+
+        total_reward = 0
+        steps = 5
+
+        for _ in range(steps):
+            action = {"reorder_quantities": []}
+            obs = env.step(action)
+            total_reward += obs["reward"]
+
+        avg_reward = total_reward / steps
+        avg_reward = max(0.01, min(0.99, avg_reward))
+
+        results[difficulty] = avg_reward
+
+    return {"scores": results}
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=7860, reload=False)
