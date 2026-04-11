@@ -15,7 +15,26 @@ import httpx
 from openai import OpenAI
 
 from graders import easy_grade, hard_grade, medium_grade
-from graders.common import clamp
+
+def strict_safe(x: float) -> float:
+    x = float(x)
+
+    # HARD bounds (not near edges)
+    if x >= 0.99:
+        return 0.9899
+    if x <= 0.01:
+        return 0.0101
+
+    # SAFE rounding without hitting edges
+    x = float(f"{x:.4f}")
+
+    # Double safety after rounding
+    if x >= 0.99:
+        return 0.9899
+    if x <= 0.01:
+        return 0.0101
+
+    return x
 
 API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "openai/gpt-4o-mini")
@@ -112,7 +131,7 @@ def log_step(step: int, action: Any, reward: float, done: bool, error: str | Non
         {
             "step": step,
             "action": action,
-            "reward": clamp(reward),
+            "reward": strict_safe(reward),
             "done": done,
             "error": error,
         },
@@ -125,8 +144,8 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
         {
             "success": success,
             "steps": steps,
-            "score": clamp(score),
-            "rewards": [clamp(reward) for reward in rewards],
+            "score": strict_safe(score),
+            "rewards": [strict_safe(reward) for reward in rewards],
         },
     )
 
@@ -352,10 +371,11 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
                 if isinstance(reward_payload, dict)
                 else float(reward_payload or 0.0)
             )
-            reward = clamp(reward)
+            reward = strict_safe(reward)
             done = bool(result.get("done", False))
 
-            rewards.append(reward)
+            safe_reward = strict_safe(reward)
+            rewards.append(safe_reward)
             steps_taken = step
             log_step(step=step, action=action, reward=reward, done=done, error=None)
 
@@ -363,7 +383,8 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
                 break
 
         final_state = await env_client.get_state(episode_id)
-        score = clamp(float(cfg["grader"](final_state, None, None)))
+        raw_score = float(cfg["grader"](final_state, None, None))
+        score = strict_safe(raw_score)
         success = score >= SUCCESS_THRESHOLD
     except Exception as exc:
         stderr(f"[TASK_ERROR] {difficulty}: {exc}")
@@ -375,8 +396,9 @@ async def run_task(difficulty: str, llm_client: OpenAI, env_client: SupplyChainE
             error=str(exc),
         )
     finally:
-        score = clamp(score)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+
+    score = strict_safe(score)
 
     return score
 
